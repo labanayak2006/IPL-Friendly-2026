@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>IPL Prediction League</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -10,90 +11,110 @@
 <style>
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: linear-gradient(to bottom, #0b1d3a, #09142b);
-  color: white;
+  font-family: 'Inter', sans-serif;
+  background: #f5f7fb;
+  color: #222;
 }
 
+/* Header */
 header {
-  text-align: center;
-  padding: 15px;
-  background: #06122a;
-  font-size: 22px;
-  color: gold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+  font-weight: 600;
 }
 
-.container { padding: 15px; }
+header img {
+  width: 35px;
+}
 
+/* Layout */
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 15px;
+}
+
+/* Cards */
 .card {
-  background: rgba(255,255,255,0.05);
-  border-radius: 12px;
+  background: white;
+  border-radius: 10px;
   padding: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-input, select, button {
-  width: 100%;
-  padding: 10px;
-  margin: 6px 0;
-  border-radius: 8px;
-  border: none;
+/* Inputs */
+input, select {
+  padding: 6px;
+  margin: 4px 0;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+select {
+  width: 70px;
 }
 
 button {
-  background: gold;
-  font-weight: bold;
+  padding: 8px 12px;
+  border: none;
+  background: #007bff;
+  color: white;
+  border-radius: 6px;
   cursor: pointer;
 }
 
-/* Match Cards */
+/* Match Card */
 .match-card {
-  background: rgba(255,255,255,0.08);
-  padding: 12px;
-  border-radius: 10px;
-  margin-bottom: 10px;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
 }
 
 /* Leaderboard */
-.top-player {
-  background: gold;
-  color: black;
+.top {
   font-weight: bold;
+  color: green;
 }
 
-/* Trophy Animation */
+/* Trophy */
 .trophy {
-  font-size: 40px;
-  animation: pop 1s infinite alternate;
   text-align: center;
+  font-size: 22px;
+  margin-bottom: 10px;
 }
 
-@keyframes pop {
-  from { transform: scale(1); }
-  to { transform: scale(1.2); }
-}
-
-/* Logos */
-.logo {
-  width: 30px;
-  vertical-align: middle;
-}
-
-/* Mobile */
-@media (max-width:600px){
-  header { font-size:18px; }
+/* Login */
+#loginBox {
+  text-align: center;
+  margin-top: 100px;
 }
 </style>
 </head>
 
 <body>
 
-<header>🏏 IPL Prediction League</header>
+<header>
+<img src="https://upload.wikimedia.org/wikipedia/en/1/1e/Indian_Premier_League_Logo.svg">
+IPL Prediction League
+</header>
 
-<div class="container">
+<div id="loginBox">
+<h3>Admin Login</h3>
+<input type="password" id="password" placeholder="Enter password">
+<br><br>
+<button onclick="login()">Login</button>
+</div>
 
-<!-- Add Match -->
-<div class="card">
+<div class="container" id="app" style="display:none;">
+
+<!-- Admin Panel -->
+<div id="adminPanel" class="card" style="display:none;">
 <h3>Add Match</h3>
 
 <input id="match" placeholder="MI vs CSK">
@@ -103,13 +124,13 @@ button {
 <h4>Predictions</h4>
 <div id="predictions"></div>
 
-<button onclick="addMatch()">Add Match</button>
+<button onclick="addMatch()">Add</button>
 </div>
 
 <!-- Trophy -->
-<div id="trophySection"></div>
+<div id="trophy"></div>
 
-<!-- Match Cards -->
+<!-- Matches -->
 <div class="card">
 <h3>Matches</h3>
 <div id="matches"></div>
@@ -123,68 +144,82 @@ button {
 
 <!-- Chart -->
 <div class="card">
-<h3>Stats</h3>
 <canvas id="chart"></canvas>
 </div>
 
 </div>
 
 <script>
+const ADMIN_PASSWORD = "ipl123";
+
 const players = ["Bhabani","Laba","Sita","Toto","Bibhu","Subidha","Happy"];
 
-const teams = {
-  MI: "https://upload.wikimedia.org/wikipedia/en/c/cd/Mumbai_Indians_Logo.svg",
-  CSK: "https://upload.wikimedia.org/wikipedia/en/2/2e/Chennai_Super_Kings_Logo.svg",
-  RCB: "https://upload.wikimedia.org/wikipedia/en/4/4f/Royal_Challengers_Bangalore_Logo.svg",
-  KKR: "https://upload.wikimedia.org/wikipedia/en/4/4c/Kolkata_Knight_Riders_Logo.svg",
-  SRH: "https://upload.wikimedia.org/wikipedia/en/8/81/Sunrisers_Hyderabad.svg",
-  DC: "https://upload.wikimedia.org/wikipedia/en/2/2f/Delhi_Capitals.svg",
-  RR: "https://upload.wikimedia.org/wikipedia/en/6/60/Rajasthan_Royals_Logo.svg",
-  PBKS: "https://upload.wikimedia.org/wikipedia/en/d/d4/Punjab_Kings_Logo.svg",
-  GT: "https://upload.wikimedia.org/wikipedia/en/0/09/Gujarat_Titans_Logo.svg",
-  LSG: "https://upload.wikimedia.org/wikipedia/en/0/03/Lucknow_Super_Giants_Logo.svg"
-};
+const teams = ["MI","CSK","RCB","KKR","SRH","DC","RR","PBKS","GT","LSG"];
 
-let matches = [];
+let matches = JSON.parse(localStorage.getItem("matches") || "[]");
+
+/* Login */
+function login(){
+  let pass = document.getElementById("password").value;
+
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("app").style.display="block";
+
+  if(pass === ADMIN_PASSWORD){
+    document.getElementById("adminPanel").style.display="block";
+  }
+
+  init();
+  render();
+}
 
 /* Init */
 function init(){
   let winner = document.getElementById("winner");
-  Object.keys(teams).forEach(t=>{
-    winner.innerHTML += `<option value="${t}">${t}</option>`;
+
+  teams.forEach(t=>{
+    winner.innerHTML += `<option>${t}</option>`;
   });
 
   let predDiv = document.getElementById("predictions");
+
   players.forEach(p=>{
     predDiv.innerHTML += `
-      <label>${p}</label>
+      ${p}
       <select id="${p}">
-        ${Object.keys(teams).map(t=>`<option>${t}</option>`).join("")}
-      </select>
+        ${teams.map(t=>`<option>${t}</option>`).join("")}
+      </select><br>
     `;
   });
 }
 
+/* Add Match */
 function addMatch(){
   let match = document.getElementById("match").value;
   let winner = document.getElementById("winner").value;
 
   let predictions = {};
+
   players.forEach(p=>{
     predictions[p] = document.getElementById(p).value;
   });
 
   matches.push({match,winner,predictions});
+
+  localStorage.setItem("matches", JSON.stringify(matches));
+
   render();
 }
 
+/* Render */
 function render(){
-  let matchDiv = "";
-  let scores = {};
+  let matchHTML="";
+  let scores={};
+
   players.forEach(p=>scores[p]=0);
 
   matches.forEach(m=>{
-    let correct = [];
+    let correct=[];
 
     players.forEach(p=>{
       if(m.predictions[p]===m.winner){
@@ -193,48 +228,45 @@ function render(){
       }
     });
 
-    matchDiv += `
+    matchHTML += `
     <div class="match-card">
-      <b>${m.match}</b><br>
-      Winner: <img class="logo" src="${teams[m.winner]}"> ${m.winner}<br>
-      ✅ ${correct.join(", ")}
+      ${m.match} → <b>${m.winner}</b><br>
+      ✔ ${correct.join(", ")}
     </div>`;
   });
 
-  document.getElementById("matches").innerHTML = matchDiv;
+  document.getElementById("matches").innerHTML = matchHTML;
 
   /* Leaderboard */
   let sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
   let top = sorted[0][0];
 
-  let lb = "";
+  let lb="";
   sorted.forEach(([p,s])=>{
-    lb += `<div class="${p===top?'top-player':''}">
-      ${p} - ${s}
-    </div>`;
+    lb += `<div class="${p===top?'top':''}">${p} - ${s}</div>`;
   });
 
   document.getElementById("leaderboard").innerHTML = lb;
 
   /* Trophy */
-  document.getElementById("trophySection").innerHTML =
-    `<div class="trophy">🏆 ${top} is Leading!</div>`;
+  document.getElementById("trophy").innerHTML =
+    `<div class="trophy">🏆 ${top} leading</div>`;
 
   /* Chart */
   new Chart(document.getElementById("chart"), {
-    type: 'bar',
-    data: {
-      labels: players,
-      datasets: [{
-        label: 'Wins',
-        data: players.map(p=>scores[p]),
-        backgroundColor: 'gold'
+    type:'bar',
+    data:{
+      labels:players,
+      datasets:[{
+        data:players.map(p=>scores[p]),
+        backgroundColor:'#007bff'
       }]
+    },
+    options:{
+      plugins:{legend:{display:false}}
     }
   });
 }
-
-init();
 </script>
 
 </body>
