@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPL Prediction League</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(to bottom, #0b1d3a, #09142b);
+  color: white;
+}
+
+/* Header */
+header {
+  text-align: center;
+  padding: 15px;
+  background: #06122a;
+  font-size: 22px;
+  font-weight: bold;
+  color: gold;
+}
+
+/* Card Layout */
+.container {
+  padding: 15px;
+}
+
+.card {
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+/* Inputs */
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 8px;
+  border: none;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background: gold;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  text-align: center;
+}
+
+th {
+  color: gold;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  header {
+    font-size: 18px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>🏏 IPL Prediction League</header>
+
+<div class="container">
+
+<!-- Match Entry -->
+<div class="card">
+<h3>Add Match</h3>
+
+<input id="match" placeholder="Match (MI vs CSK)">
+
+<select id="winner">
+<option value="">Select Winner</option>
+</select>
+
+<h4>Predictions</h4>
+<div id="predictionInputs"></div>
+
+<button onclick="addMatch()">Add Match</button>
+</div>
+
+<!-- Match Table -->
+<div class="card">
+<h3>Match Results</h3>
+<table id="matchesTable"></table>
+</div>
+
+<!-- Leaderboard -->
+<div class="card">
+<h3>Leaderboard</h3>
+<table id="leaderboard"></table>
+</div>
+
+</div>
+
+<script>
+const players = ["Bhabani","Laba","Sita","Toto","Bibhu","Subidha","Happy"];
+
+const teams = [
+"MI","CSK","RCB","KKR","SRH","DC","RR","PBKS","GT","LSG"
+];
+
+let matches = [];
+
+/* Load dropdowns */
+function init() {
+  let winnerSelect = document.getElementById("winner");
+
+  teams.forEach(t => {
+    let opt = `<option value="${t}">${t}</option>`;
+    winnerSelect.innerHTML += opt;
+  });
+
+  let predDiv = document.getElementById("predictionInputs");
+
+  players.forEach(p => {
+    let html = `<label>${p}</label>
+    <select id="${p}">
+      <option value="">Select</option>
+      ${teams.map(t => `<option value="${t}">${t}</option>`).join("")}
+    </select>`;
+    predDiv.innerHTML += html;
+  });
+}
+
+function addMatch() {
+  let match = document.getElementById("match").value;
+  let winner = document.getElementById("winner").value;
+
+  if(!match || !winner) {
+    alert("Enter match and winner");
+    return;
+  }
+
+  let predictions = {};
+  players.forEach(p => {
+    predictions[p] = document.getElementById(p).value;
+  });
+
+  matches.push({match, winner, predictions});
+  render();
+}
+
+function render() {
+  let table = "<tr><th>Match</th><th>Winner</th><th>Correct</th></tr>";
+  let scores = {};
+
+  players.forEach(p => scores[p] = 0);
+
+  matches.forEach(m => {
+    let correct = [];
+
+    players.forEach(p => {
+      if(m.predictions[p] === m.winner) {
+        correct.push(p);
+        scores[p]++;
+      }
+    });
+
+    table += `<tr>
+      <td>${m.match}</td>
+      <td>${m.winner}</td>
+      <td>${correct.join(", ")}</td>
+    </tr>`;
+  });
+
+  document.getElementById("matchesTable").innerHTML = table;
+
+  let lb = "<tr><th>Player</th><th>Wins</th></tr>";
+
+  players.forEach(p => {
+    lb += `<tr>
+      <td>${p}</td>
+      <td>${scores[p]}</td>
+    </tr>`;
+  });
+
+  document.getElementById("leaderboard").innerHTML = lb;
+}
+
+init();
+</script>
+
+</body>
+</html>
