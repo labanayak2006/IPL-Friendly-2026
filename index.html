@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IPL Prediction League</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body {
   margin: 0;
@@ -13,20 +15,15 @@ body {
   color: white;
 }
 
-/* Header */
 header {
   text-align: center;
   padding: 15px;
   background: #06122a;
   font-size: 22px;
-  font-weight: bold;
   color: gold;
 }
 
-/* Card Layout */
-.container {
-  padding: 15px;
-}
+.container { padding: 15px; }
 
 .card {
   background: rgba(255,255,255,0.05);
@@ -35,8 +32,7 @@ header {
   margin-bottom: 20px;
 }
 
-/* Inputs */
-input, select {
+input, select, button {
   width: 100%;
   padding: 10px;
   margin: 6px 0;
@@ -45,36 +41,47 @@ input, select {
 }
 
 button {
-  width: 100%;
-  padding: 12px;
   background: gold;
-  border: none;
-  border-radius: 8px;
   font-weight: bold;
   cursor: pointer;
 }
 
-/* Tables */
-table {
-  width: 100%;
-  border-collapse: collapse;
+/* Match Cards */
+.match-card {
+  background: rgba(255,255,255,0.08);
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
 }
 
-th, td {
-  padding: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.2);
+/* Leaderboard */
+.top-player {
+  background: gold;
+  color: black;
+  font-weight: bold;
+}
+
+/* Trophy Animation */
+.trophy {
+  font-size: 40px;
+  animation: pop 1s infinite alternate;
   text-align: center;
 }
 
-th {
-  color: gold;
+@keyframes pop {
+  from { transform: scale(1); }
+  to { transform: scale(1.2); }
+}
+
+/* Logos */
+.logo {
+  width: 30px;
+  vertical-align: middle;
 }
 
 /* Mobile */
-@media (max-width: 600px) {
-  header {
-    font-size: 18px;
-  }
+@media (max-width:600px){
+  header { font-size:18px; }
 }
 </style>
 </head>
@@ -85,32 +92,39 @@ th {
 
 <div class="container">
 
-<!-- Match Entry -->
+<!-- Add Match -->
 <div class="card">
 <h3>Add Match</h3>
 
-<input id="match" placeholder="Match (MI vs CSK)">
+<input id="match" placeholder="MI vs CSK">
 
-<select id="winner">
-<option value="">Select Winner</option>
-</select>
+<select id="winner"></select>
 
 <h4>Predictions</h4>
-<div id="predictionInputs"></div>
+<div id="predictions"></div>
 
 <button onclick="addMatch()">Add Match</button>
 </div>
 
-<!-- Match Table -->
+<!-- Trophy -->
+<div id="trophySection"></div>
+
+<!-- Match Cards -->
 <div class="card">
-<h3>Match Results</h3>
-<table id="matchesTable"></table>
+<h3>Matches</h3>
+<div id="matches"></div>
 </div>
 
 <!-- Leaderboard -->
 <div class="card">
 <h3>Leaderboard</h3>
-<table id="leaderboard"></table>
+<div id="leaderboard"></div>
+</div>
+
+<!-- Chart -->
+<div class="card">
+<h3>Stats</h3>
+<canvas id="chart"></canvas>
 </div>
 
 </div>
@@ -118,86 +132,106 @@ th {
 <script>
 const players = ["Bhabani","Laba","Sita","Toto","Bibhu","Subidha","Happy"];
 
-const teams = [
-"MI","CSK","RCB","KKR","SRH","DC","RR","PBKS","GT","LSG"
-];
+const teams = {
+  MI: "https://upload.wikimedia.org/wikipedia/en/c/cd/Mumbai_Indians_Logo.svg",
+  CSK: "https://upload.wikimedia.org/wikipedia/en/2/2e/Chennai_Super_Kings_Logo.svg",
+  RCB: "https://upload.wikimedia.org/wikipedia/en/4/4f/Royal_Challengers_Bangalore_Logo.svg",
+  KKR: "https://upload.wikimedia.org/wikipedia/en/4/4c/Kolkata_Knight_Riders_Logo.svg",
+  SRH: "https://upload.wikimedia.org/wikipedia/en/8/81/Sunrisers_Hyderabad.svg",
+  DC: "https://upload.wikimedia.org/wikipedia/en/2/2f/Delhi_Capitals.svg",
+  RR: "https://upload.wikimedia.org/wikipedia/en/6/60/Rajasthan_Royals_Logo.svg",
+  PBKS: "https://upload.wikimedia.org/wikipedia/en/d/d4/Punjab_Kings_Logo.svg",
+  GT: "https://upload.wikimedia.org/wikipedia/en/0/09/Gujarat_Titans_Logo.svg",
+  LSG: "https://upload.wikimedia.org/wikipedia/en/0/03/Lucknow_Super_Giants_Logo.svg"
+};
 
 let matches = [];
 
-/* Load dropdowns */
-function init() {
-  let winnerSelect = document.getElementById("winner");
-
-  teams.forEach(t => {
-    let opt = `<option value="${t}">${t}</option>`;
-    winnerSelect.innerHTML += opt;
+/* Init */
+function init(){
+  let winner = document.getElementById("winner");
+  Object.keys(teams).forEach(t=>{
+    winner.innerHTML += `<option value="${t}">${t}</option>`;
   });
 
-  let predDiv = document.getElementById("predictionInputs");
-
-  players.forEach(p => {
-    let html = `<label>${p}</label>
-    <select id="${p}">
-      <option value="">Select</option>
-      ${teams.map(t => `<option value="${t}">${t}</option>`).join("")}
-    </select>`;
-    predDiv.innerHTML += html;
+  let predDiv = document.getElementById("predictions");
+  players.forEach(p=>{
+    predDiv.innerHTML += `
+      <label>${p}</label>
+      <select id="${p}">
+        ${Object.keys(teams).map(t=>`<option>${t}</option>`).join("")}
+      </select>
+    `;
   });
 }
 
-function addMatch() {
+function addMatch(){
   let match = document.getElementById("match").value;
   let winner = document.getElementById("winner").value;
 
-  if(!match || !winner) {
-    alert("Enter match and winner");
-    return;
-  }
-
   let predictions = {};
-  players.forEach(p => {
+  players.forEach(p=>{
     predictions[p] = document.getElementById(p).value;
   });
 
-  matches.push({match, winner, predictions});
+  matches.push({match,winner,predictions});
   render();
 }
 
-function render() {
-  let table = "<tr><th>Match</th><th>Winner</th><th>Correct</th></tr>";
+function render(){
+  let matchDiv = "";
   let scores = {};
+  players.forEach(p=>scores[p]=0);
 
-  players.forEach(p => scores[p] = 0);
-
-  matches.forEach(m => {
+  matches.forEach(m=>{
     let correct = [];
 
-    players.forEach(p => {
-      if(m.predictions[p] === m.winner) {
+    players.forEach(p=>{
+      if(m.predictions[p]===m.winner){
         correct.push(p);
         scores[p]++;
       }
     });
 
-    table += `<tr>
-      <td>${m.match}</td>
-      <td>${m.winner}</td>
-      <td>${correct.join(", ")}</td>
-    </tr>`;
+    matchDiv += `
+    <div class="match-card">
+      <b>${m.match}</b><br>
+      Winner: <img class="logo" src="${teams[m.winner]}"> ${m.winner}<br>
+      ✅ ${correct.join(", ")}
+    </div>`;
   });
 
-  document.getElementById("matchesTable").innerHTML = table;
+  document.getElementById("matches").innerHTML = matchDiv;
 
-  let lb = "<tr><th>Player</th><th>Wins</th></tr>";
+  /* Leaderboard */
+  let sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  let top = sorted[0][0];
 
-  players.forEach(p => {
-    lb += `<tr>
-      <td>${p}</td>
-      <td>${scores[p]}</td>
-    </tr>`;
+  let lb = "";
+  sorted.forEach(([p,s])=>{
+    lb += `<div class="${p===top?'top-player':''}">
+      ${p} - ${s}
+    </div>`;
   });
 
   document.getElementById("leaderboard").innerHTML = lb;
+
+  /* Trophy */
+  document.getElementById("trophySection").innerHTML =
+    `<div class="trophy">🏆 ${top} is Leading!</div>`;
+
+  /* Chart */
+  new Chart(document.getElementById("chart"), {
+    type: 'bar',
+    data: {
+      labels: players,
+      datasets: [{
+        label: 'Wins',
+        data: players.map(p=>scores[p]),
+        backgroundColor: 'gold'
+      }]
+    }
+  });
 }
 
 init();
