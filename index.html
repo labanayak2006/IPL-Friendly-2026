@@ -3,97 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>IPL Prediction League</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 
 <style>
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
   background: #f5f7fb;
-  color: #222;
 }
 
-/* Header */
 header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  text-align: center;
   padding: 12px;
   background: white;
   border-bottom: 1px solid #ddd;
-  font-weight: 600;
 }
 
-header img {
-  width: 35px;
-}
+header img { width: 35px; }
 
-/* Layout */
 .container {
   max-width: 900px;
   margin: auto;
   padding: 15px;
 }
 
-/* Cards */
 .card {
   background: white;
-  border-radius: 10px;
   padding: 15px;
+  border-radius: 10px;
   margin-bottom: 15px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-/* Inputs */
-input, select {
-  padding: 6px;
-  margin: 4px 0;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-select {
-  width: 70px;
-}
+select { width: 70px; padding: 5px; }
 
 button {
-  padding: 8px 12px;
-  border: none;
+  padding: 8px;
   background: #007bff;
   color: white;
+  border: none;
   border-radius: 6px;
-  cursor: pointer;
 }
 
-/* Match Card */
-.match-card {
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-  font-size: 14px;
-}
-
-/* Leaderboard */
-.top {
-  font-weight: bold;
-  color: green;
-}
-
-/* Trophy */
-.trophy {
-  text-align: center;
-  font-size: 22px;
-  margin-bottom: 10px;
-}
-
-/* Login */
-#loginBox {
-  text-align: center;
-  margin-top: 100px;
-}
+.top { color: green; font-weight: bold; }
+.trophy { text-align: center; font-size: 20px; }
 </style>
 </head>
 
@@ -104,48 +62,26 @@ button {
 IPL Prediction League
 </header>
 
-<div id="loginBox">
-<h3>Admin Login</h3>
-<input type="password" id="password" placeholder="Enter password">
+<div id="loginBox" style="text-align:center;margin-top:80px;">
+<input type="password" id="pass" placeholder="Admin password">
 <br><br>
 <button onclick="login()">Login</button>
 </div>
 
-<div class="container" id="app" style="display:none;">
+<div id="app" class="container" style="display:none;">
 
-<!-- Admin Panel -->
 <div id="adminPanel" class="card" style="display:none;">
-<h3>Add Match</h3>
-
 <input id="match" placeholder="MI vs CSK">
-
 <select id="winner"></select>
-
-<h4>Predictions</h4>
 <div id="predictions"></div>
-
-<button onclick="addMatch()">Add</button>
+<button onclick="addMatch()">Add Match</button>
 </div>
 
-<!-- Trophy -->
 <div id="trophy"></div>
 
-<!-- Matches -->
-<div class="card">
-<h3>Matches</h3>
-<div id="matches"></div>
-</div>
-
-<!-- Leaderboard -->
-<div class="card">
-<h3>Leaderboard</h3>
-<div id="leaderboard"></div>
-</div>
-
-<!-- Chart -->
-<div class="card">
-<canvas id="chart"></canvas>
-</div>
+<div class="card"><div id="matches"></div></div>
+<div class="card"><div id="leaderboard"></div></div>
+<div class="card"><canvas id="chart"></canvas></div>
 
 </div>
 
@@ -153,24 +89,29 @@ IPL Prediction League
 const ADMIN_PASSWORD = "ipl123";
 
 const players = ["Bhabani","Laba","Sita","Toto","Bibhu","Subidha","Happy"];
-
 const teams = ["MI","CSK","RCB","KKR","SRH","DC","RR","PBKS","GT","LSG"];
 
-let matches = JSON.parse(localStorage.getItem("matches") || "[]");
+/* Firebase Config (PASTE YOURS HERE) */
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_PROJECT_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 /* Login */
 function login(){
-  let pass = document.getElementById("password").value;
-
   document.getElementById("loginBox").style.display="none";
   document.getElementById("app").style.display="block";
 
-  if(pass === ADMIN_PASSWORD){
+  if(document.getElementById("pass").value === ADMIN_PASSWORD){
     document.getElementById("adminPanel").style.display="block";
   }
 
   init();
-  render();
+  loadData();
 }
 
 /* Init */
@@ -181,15 +122,13 @@ function init(){
     winner.innerHTML += `<option>${t}</option>`;
   });
 
-  let predDiv = document.getElementById("predictions");
+  let pred = document.getElementById("predictions");
 
   players.forEach(p=>{
-    predDiv.innerHTML += `
-      ${p}
-      <select id="${p}">
-        ${teams.map(t=>`<option>${t}</option>`).join("")}
-      </select><br>
-    `;
+    pred.innerHTML += `${p}
+    <select id="${p}">
+      ${teams.map(t=>`<option>${t}</option>`).join("")}
+    </select><br>`;
   });
 }
 
@@ -199,24 +138,28 @@ function addMatch(){
   let winner = document.getElementById("winner").value;
 
   let predictions = {};
-
   players.forEach(p=>{
     predictions[p] = document.getElementById(p).value;
   });
 
-  matches.push({match,winner,predictions});
+  db.collection("matches").add({match,winner,predictions});
+}
 
-  localStorage.setItem("matches", JSON.stringify(matches));
-
-  render();
+/* Live Data */
+function loadData(){
+  db.collection("matches").onSnapshot(snapshot=>{
+    let matches=[];
+    snapshot.forEach(doc=>matches.push(doc.data()));
+    render(matches);
+  });
 }
 
 /* Render */
-function render(){
-  let matchHTML="";
+function render(matches){
   let scores={};
-
   players.forEach(p=>scores[p]=0);
+
+  let html="";
 
   matches.forEach(m=>{
     let correct=[];
@@ -228,42 +171,25 @@ function render(){
       }
     });
 
-    matchHTML += `
-    <div class="match-card">
-      ${m.match} → <b>${m.winner}</b><br>
-      ✔ ${correct.join(", ")}
-    </div>`;
+    html += `${m.match} → ${m.winner}<br>✔ ${correct.join(", ")}<hr>`;
   });
 
-  document.getElementById("matches").innerHTML = matchHTML;
+  document.getElementById("matches").innerHTML = html;
 
-  /* Leaderboard */
   let sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
   let top = sorted[0][0];
 
-  let lb="";
-  sorted.forEach(([p,s])=>{
-    lb += `<div class="${p===top?'top':''}">${p} - ${s}</div>`;
-  });
+  document.getElementById("leaderboard").innerHTML =
+    sorted.map(([p,s])=>`<div class="${p===top?'top':''}">${p} - ${s}</div>`).join("");
 
-  document.getElementById("leaderboard").innerHTML = lb;
-
-  /* Trophy */
   document.getElementById("trophy").innerHTML =
     `<div class="trophy">🏆 ${top} leading</div>`;
 
-  /* Chart */
   new Chart(document.getElementById("chart"), {
     type:'bar',
     data:{
       labels:players,
-      datasets:[{
-        data:players.map(p=>scores[p]),
-        backgroundColor:'#007bff'
-      }]
-    },
-    options:{
-      plugins:{legend:{display:false}}
+      datasets:[{data:players.map(p=>scores[p])}]
     }
   });
 }
